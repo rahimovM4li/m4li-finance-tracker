@@ -18,6 +18,7 @@ export function Dashboard({ incomes, expenses }: DashboardProps) {
   const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const balance = totalIncome - totalExpenses;
+  console.log('Dashboard balance:', balance);
 
   const stats = [
     {

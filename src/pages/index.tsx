@@ -4,13 +4,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/Header';
 import { Dashboard } from '@/components/Dashboard';
 import { IncomeList } from '@/components/IncomeList';
+import { InstallPrompt } from '@/components/InstallPrompt';
 import { ExpenseList } from '@/components/ExpenseList';
 import { StatisticsView } from '@/components/StatisticsView';
 import { WelcomeModal } from '@/components/WelcomeModal';
 import { GreetingBanner } from '@/components/GreetingBanner';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import type { Income, Expense } from '@/types/finance';
+import { Income, Expense } from '@/types/finance';
 import { LayoutDashboard, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 
 const Index = () => {
@@ -128,6 +129,8 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </motion.main>
+      
+      <InstallPrompt />
     </div>
   );
 };

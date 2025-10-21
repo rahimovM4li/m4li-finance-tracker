@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type Language = 'en' | 'ru';
+type Language = 'en' | 'ru' | 'tg';
 
 interface LanguageContextType {
   language: Language;
@@ -56,7 +56,6 @@ const translations = {
     
     // Statistics
     incomeVsExpenses: 'Income vs Expenses',
-    spendingByCategory: 'Spending by Category',
     monthlyTrends: 'Monthly Trends',
     financialGrowth: 'Financial Growth',
     
@@ -85,6 +84,23 @@ const translations = {
     // Currency
     selectCurrency: 'Select Currency',
     currency: 'Currency',
+
+     // PWA Install
+    installApp: 'Install Finance Tracker',
+    installAppDescription: 'Install this app on your device for the best experience!',
+    install: 'Install',
+    notNow: 'Not Now',
+    home: 'Home',
+    insights: 'Insights',
+    insightsDescription: 'Analyze your financial trends and patterns',
+    compareWithLastMonth: 'Compare with last month',
+    hideComparison: 'Hide comparison',
+    vsLastMonth: 'vs last month',
+    netSavings: 'Net Savings',
+    dailyExpenseCalendar: 'Daily Expense Calendar',
+    dailyExpenseDescription: 'Heatmap showing spending intensity throughout the month',
+    spendingByCategory: 'Spending by Category',
+    categoryBreakdown: 'Current month category breakdown',
   },
   ru: {
     // Navigation
@@ -133,7 +149,6 @@ const translations = {
     
     // Statistics
     incomeVsExpenses: 'Доходы против расходов',
-    spendingByCategory: 'Расходы по категориям',
     monthlyTrends: 'Месячные тренды',
     financialGrowth: 'Финансовый рост',
     
@@ -162,6 +177,116 @@ const translations = {
     // Currency
     selectCurrency: 'Выбрать валюту',
     currency: 'Валюта',
+
+       // PWA Install
+    installApp: 'Установить Finance Tracker',
+    installAppDescription: 'Установите это приложение на устройство для лучшего опыта!',
+    install: 'Установить',
+    notNow: 'Позже',
+    home: 'Главная',
+    insights: 'Аналитика',
+    insightsDescription: 'Анализируйте финансовые тренды и паттерны',
+    compareWithLastMonth: 'Сравнить с прошлым месяцем',
+    hideComparison: 'Скрыть сравнение',
+    vsLastMonth: 'против прошлого месяца',
+    netSavings: 'Чистые сбережения',
+    dailyExpenseCalendar: 'Календарь ежедневных расходов',
+    dailyExpenseDescription: 'Тепловая карта интенсивности расходов в течение месяца',
+    spendingByCategory: 'Расходы по категориям',
+    categoryBreakdown: 'Разбивка по категориям за текущий месяц',
+  },
+  tg: {
+    // Navigation
+    dashboard: 'Лавҳаи асосӣ',
+    income: 'Даромад',
+    expenses: 'Хароҷот',
+    calendar: 'Тақвим',
+    statistics: 'Статистика',
+    
+    // Common
+    add: 'Илова кардан',
+    edit: 'Тағйир додан',
+    delete: 'Нест кардан',
+    cancel: 'Бекор кардан',
+    save: 'Захира кардан',
+    total: 'Ҳамагӣ',
+    date: 'Сана',
+    amount: 'Миқдор',
+    category: 'Категория',
+    name: 'Ном',
+    description: 'Тавсиф',
+    
+    // Income
+    addIncome: 'Илова кардани даромад',
+    incomeSource: 'Манбаи даромад',
+    mainJob: 'Кори асосӣ',
+    sideJob: 'Кори иловагӣ',
+    other: 'Дигар',
+    totalIncome: 'Даромади умумӣ',
+    
+    // Expenses
+    addExpense: 'Илова кардани хароҷот',
+    expenseName: 'Номи хароҷот',
+    totalExpenses: 'Хароҷоти умумӣ',
+    remainingBalance: 'Боқимонда',
+    
+    // Categories
+    food: 'Хӯрок',
+    transport: 'Нақлиёт',
+    housing: 'Хонагӣ',
+    entertainment: 'Фароғат',
+    healthcare: 'Тандурустӣ',
+    shopping: 'Харидорӣ',
+    utilities: 'Коммуналӣ',
+    education: 'Маориф',
+    
+    // Statistics
+    incomeVsExpenses: 'Даромад ба муқобили харoҷот',
+    monthlyTrends: 'Тамоюли моҳона',
+    financialGrowth: 'Афзоиши молиявӣ',
+    
+    // Calendar
+    today: 'Имрӯз',
+    thisWeek: 'Ҳафтаи ҷорӣ',
+    thisMonth: 'Моҳи ҷорӣ',
+    
+    // Messages
+    noData: 'Маълумот нест',
+    exportData: 'Содироти маълумот',
+    importData: 'Вороди маълумот',
+    
+    // Welcome & Greetings
+    welcomeTitle: 'Хуш омадед ба Finance Tracker!',
+    welcomeDescription: 'Биёед шиносӣ шавем',
+    yourName: 'Номи шумо',
+    enterYourName: 'Номи худро ворид кунед',
+    getStarted: 'Оғоз кардан',
+    goodMorning: 'Субҳ ба хайр',
+    goodAfternoon: 'Рӯз ба хайр',
+    goodEvening: 'Шом ба хайр',
+    yourBalanceToday: 'Балансатон имрӯз',
+    changeName: 'Тағйир додани ном',
+    
+    // Currency
+    selectCurrency: 'Интихоби асъор',
+    currency: 'Асъор',
+    
+    // PWA Install
+    installApp: 'Насб кардани Finance Tracker',
+    installAppDescription: 'Барои таҷрибаи беҳтарин ин барномаро дар дастгоҳатон насб кунед!',
+    install: 'Насб кардан',
+    notNow: 'Баъдтар',
+    home: 'Асосӣ',
+    insights: 'Таҳлил',
+    insightsDescription: 'Таҳлили тамоюл ва намунаҳои молиявии худ',
+    compareWithLastMonth: 'Муқоиса бо моҳи гузашта',
+    hideComparison: 'Пинҳон кардани муқоиса',
+    vsLastMonth: 'ба муқобили моҳи гузашта',
+    netSavings: 'Пасандози холис',
+    dailyExpenseCalendar: 'Тақвими харoҷоти ҳаррӯза',
+    dailyExpenseDescription: 'Харитаи гармии шиддати харoҷот дар тӯли моҳ',
+    spendingByCategory: 'Харoҷот аз рӯи категория',
+    categoryBreakdown: 'Тақсимот аз рӯи категория барои моҳи ҷорӣ',
   },
 };
 
@@ -178,7 +303,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, [language]);
 
   const toggleLanguage = () => {
-    setLanguage((prev) => (prev === 'en' ? 'ru' : 'en'));
+     setLanguage((prev) => {
+      if (prev === 'en') return 'ru';
+      if (prev === 'ru') return 'tg';
+      return 'en';
+    });
   };
 
   const t = (key: string): string => {
