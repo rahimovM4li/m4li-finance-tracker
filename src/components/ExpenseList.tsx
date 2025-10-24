@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { Plus, Trash2, ShoppingBag, Repeat } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Badge } from './ui/badge';
 import {
   Select,
   SelectContent,
@@ -19,14 +20,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from './ui/dialog';
+import { RecurringTransactionDialog } from './RecurringTransactionDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import type { Expense, ExpenseCategory } from '@/types/finance';
+import { Expense, ExpenseCategory, RecurringTransaction } from '@/types/finance';
 
 interface ExpenseListProps {
   expenses: Expense[];
   onAddExpense: (expense: Omit<Expense, 'id'>) => void;
   onDeleteExpense: (id: string) => void;
+  recurringTransactions: RecurringTransaction[];
+  onAddRecurring: (transaction: Omit<RecurringTransaction, 'id'>) => void;
+  onUpdateRecurring: (id: string, updates: Partial<RecurringTransaction>) => void;
+  onDeleteRecurring: (id: string) => void;
 }
 
 const categories: ExpenseCategory[] = [
@@ -41,10 +47,20 @@ const categories: ExpenseCategory[] = [
   'other',
 ];
 
-export function ExpenseList({ expenses, onAddExpense, onDeleteExpense }: ExpenseListProps) {
+export function ExpenseList({ 
+  expenses, 
+  onAddExpense, 
+  onDeleteExpense,
+  recurringTransactions,
+  onAddRecurring,
+  onUpdateRecurring,
+  onDeleteRecurring,
+}: ExpenseListProps) {
   const { t } = useLanguage();
   const { formatAmount } = useCurrency();
   const [open, setOpen] = useState(false);
+  const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
+  const [editingRecurring, setEditingRecurring] = useState<RecurringTransaction | undefined>();
   const [formData, setFormData] = useState({
     name: '',
     category: 'food' as ExpenseCategory,
@@ -52,6 +68,8 @@ export function ExpenseList({ expenses, onAddExpense, onDeleteExpense }: Expense
     date: new Date().toISOString().split('T')[0],
     description: '',
   });
+
+  const expenseRecurring = recurringTransactions.filter(t => t.type === 'expense');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,10 +93,28 @@ export function ExpenseList({ expenses, onAddExpense, onDeleteExpense }: Expense
     setOpen(false);
   };
 
+  const handleEditRecurring = (recurring: RecurringTransaction) => {
+    setEditingRecurring(recurring);
+    setRecurringDialogOpen(true);
+  };
+
   return (
     <Card className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <h2 className="text-2xl font-bold">{t('expenses')}</h2>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              setEditingRecurring(undefined);
+              setRecurringDialogOpen(true);
+            }}
+            className="flex items-center gap-2"
+          >
+            <Repeat className="h-4 w-4" />
+            <span className="sm:inline">{t('recurring')}</span>
+          </Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button className="gradient-expense">
@@ -159,7 +195,49 @@ export function ExpenseList({ expenses, onAddExpense, onDeleteExpense }: Expense
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      <RecurringTransactionDialog
+        open={recurringDialogOpen}
+        onOpenChange={(open) => {
+          setRecurringDialogOpen(open);
+          if (!open) setEditingRecurring(undefined);
+        }}
+        onSave={onAddRecurring}
+        onUpdate={onUpdateRecurring}
+        onDelete={onDeleteRecurring}
+        transaction={editingRecurring}
+        type="expense"
+      />
+
+      {expenseRecurring.length > 0 && (
+        <div className="mb-4 space-y-2">
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Repeat className="h-4 w-4" />
+            {t('recurring')} ({expenseRecurring.length})
+          </h3>
+          <div className="space-y-2">
+            {expenseRecurring.map((recurring) => (
+              <motion.div
+                key={recurring.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center justify-between p-3 bg-destructive/5 rounded-lg border border-destructive/10 cursor-pointer hover:bg-destructive/10 transition-colors"
+                onClick={() => handleEditRecurring(recurring)}
+              >
+                <div className="flex items-center gap-2">
+                  <Repeat className="h-4 w-4 text-destructive" />
+                  <span className="text-sm font-medium">{recurring.name}</span>
+                  <Badge variant="secondary" className="text-xs">{t(recurring.frequency)}</Badge>
+                  {recurring.isPaused && <Badge variant="outline" className="text-xs">Paused</Badge>}
+                </div>
+                <span className="text-sm font-bold text-expense">-{formatAmount(recurring.amount)}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <AnimatePresence mode="popLayout">
         {expenses.length === 0 ? (
@@ -186,7 +264,15 @@ export function ExpenseList({ expenses, onAddExpense, onDeleteExpense }: Expense
                     <ShoppingBag className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <p className="font-semibold">{expense.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold">{expense.name}</p>
+                      {expense.isRecurring && (
+                        <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                          <Repeat className="h-3 w-3" />
+                          {t('recurring')}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       {t(expense.category)} • {new Date(expense.date).toLocaleDateString()}
                     </p>
@@ -201,13 +287,15 @@ export function ExpenseList({ expenses, onAddExpense, onDeleteExpense }: Expense
                   <span className="text-xl font-bold text-expense">
                     -{formatAmount(expense.amount)}
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onDeleteExpense(expense.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {!expense.isRecurring && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onDeleteExpense(expense.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </motion.div>
             ))}

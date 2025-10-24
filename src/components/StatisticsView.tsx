@@ -1,26 +1,13 @@
 import { motion } from 'framer-motion';
 import { Card } from './ui/card';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { Income, Expense } from '@/types/finance';
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  LineChart,
-  Line,
-} from 'recharts';
-import { useEffect, useState } from 'react';
+import { Income, Expense } from '@/types/finance';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, LineChart, Line } from 'recharts';
 
 interface StatisticsViewProps {
   incomes: Income[];
   expenses: Expense[];
+  selectedMonth: Date;
 }
 
 const COLORS = {
@@ -38,92 +25,122 @@ const COLORS = {
   ],
 };
 
-// Hilfs-Hook, um zu prüfen, ob es sich um ein mobiles Gerät handelt
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  return isMobile;
-}
-
-export function StatisticsView({ incomes, expenses }: StatisticsViewProps) {
+export function StatisticsView({ incomes, expenses, selectedMonth}: StatisticsViewProps) {
   const { t } = useLanguage();
-  const isMobile = useIsMobile();
 
   const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
+  // Income vs Expenses data
   const comparisonData = [
     { name: t('income'), value: totalIncome, fill: COLORS.income },
     { name: t('expenses'), value: totalExpenses, fill: COLORS.expense },
   ];
 
+  // Spending by category
   const categoryData = expenses.reduce((acc, expense) => {
     const existing = acc.find(item => item.name === t(expense.category));
-    if (existing) existing.value += expense.amount;
-    else acc.push({ name: t(expense.category), value: expense.amount });
+    if (existing) {
+      existing.value += expense.amount;
+    } else {
+      acc.push({ name: t(expense.category), value: expense.amount });
+    }
     return acc;
   }, [] as { name: string; value: number }[]);
 
-  const monthlyData = [...incomes, ...expenses].reduce((acc, item) => {
-    const month = new Date(item.date).toLocaleDateString('en-US', {
+  const selectedYear = selectedMonth.getFullYear();
+
+  // Debug: Schaue dir die eingehenden Daten an
+  console.log('=== DEBUG StatisticsView ===');
+  console.log('selectedMonth:', selectedMonth);
+  console.log('Total incomes:', incomes.length);
+  console.log('Total expenses:', expenses.length);
+  console.log('Sample income dates:', incomes.slice(0, 3).map(i => i.date));
+  console.log('Sample expense dates:', expenses.slice(0, 3).map(e => e.date));
+
+  // Erstelle alle Monate des ausgewählten Jahres
+  const months = Array.from({ length: 12 }, (_, i) =>
+    new Date(selectedYear, i, 1).toLocaleDateString('en-US', {
+      month: 'short',
+      year: 'numeric',
+    })
+  );
+
+  // Initialisiere die Datenstruktur für alle Monate
+  const monthlyDataMap: Record<string, { income: number; expenses: number }> = {};
+  months.forEach(m => (monthlyDataMap[m] = { income: 0, expenses: 0 }));
+
+  // Verarbeite alle Einnahmen und Ausgaben des ausgewählten Jahres
+  [...incomes, ...expenses].forEach(item => {
+    const date = new Date(item.date);
+    
+    // Debug: Zeige Datumsverarbeitung
+    const month = date.toLocaleDateString('en-US', {
       month: 'short',
       year: 'numeric',
     });
-    const existing = acc.find(d => d.month === month);
-    const amount = 'source' in item ? item.amount : -item.amount;
-
-    if (existing) {
-      if (amount > 0) existing.income += amount;
-      else existing.expenses += Math.abs(amount);
-    } else {
-      acc.push({
-        month,
-        income: amount > 0 ? amount : 0,
-        expenses: amount < 0 ? Math.abs(amount) : 0,
-      });
+    console.log(`Processing item: date=${item.date}, parsed=${date}, month=${month}, year=${date.getFullYear()}`);
+    
+    // Nur Transaktionen aus dem ausgewählten Jahr
+    if (date.getFullYear() === selectedYear) {
+      if ('source' in item) {
+        monthlyDataMap[month].income += item.amount;
+      } else {
+        monthlyDataMap[month].expenses += item.amount;
+      }
     }
-    return acc;
-  }, [] as { month: string; income: number; expenses: number }[]);
+  });
+
+  // Erstelle finales Array nur bis zum ausgewählten Monat
+  const monthlyData = months
+    .filter((_, i) => i <= selectedMonth.getMonth())
+    .map(month => ({
+      month,
+      income: monthlyDataMap[month].income,
+      expenses: monthlyDataMap[month].expenses,
+    }));
+
+  console.log('monthlyDataMap:', monthlyDataMap);
+  console.log('monthlyData:', monthlyData);
 
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { staggerChildren: 0.15 },
+      transition: {
+        staggerChildren: 0.15,
+      },
     },
   };
 
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 100 } },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: 'spring' as const,
+        stiffness: 100,
+      },
+    },
   };
-
-  const chartHeight = isMobile ? 220 : 300;
-  const axisFontSize = isMobile ? 10 : 12;
 
   return (
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-6"
+      className="space-y-4 md:space-y-6"
     >
-      {/* Income vs Expenses */}
       <motion.div variants={itemVariants}>
-        <Card className="p-4 sm:p-6">
-          <h3 className="text-lg sm:text-xl font-bold mb-4 text-center sm:text-left">
-            {t('incomeVsExpenses')}
-          </h3>
-          <ResponsiveContainer width="100%" height={chartHeight}>
+        <Card className="p-4 md:p-6 hover:shadow-medium transition-shadow">
+          <h3 className="text-lg md:text-xl font-bold mb-4">{t('incomeVsExpenses')}</h3>
+          <ResponsiveContainer width="100%" height={250}>
             <BarChart data={comparisonData}>
-              <XAxis dataKey="name" tick={{ fontSize: axisFontSize }} />
-              <YAxis tick={{ fontSize: axisFontSize }} />
-              <Tooltip
-                contentStyle={{
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip 
+                contentStyle={{ 
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '0.5rem',
@@ -131,7 +148,7 @@ export function StatisticsView({ incomes, expenses }: StatisticsViewProps) {
               />
               <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                 {comparisonData.map((entry, index) => (
-                  <Cell key={index} fill={entry.fill} />
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
                 ))}
               </Bar>
             </BarChart>
@@ -139,39 +156,28 @@ export function StatisticsView({ incomes, expenses }: StatisticsViewProps) {
         </Card>
       </motion.div>
 
-      {/* Spending by Category */}
       {categoryData.length > 0 && (
         <motion.div variants={itemVariants}>
-          <Card className="p-4 sm:p-6">
-            <h3 className="text-lg sm:text-xl font-bold mb-4 text-center sm:text-left">
-              {t('spendingByCategory')}
-            </h3>
-            <ResponsiveContainer width="100%" height={chartHeight}>
+          <Card className="p-4 md:p-6 hover:shadow-medium transition-shadow">
+            <h3 className="text-lg md:text-xl font-bold mb-4">{t('spendingByCategory')}</h3>
+            <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
                   data={categoryData}
                   cx="50%"
                   cy="50%"
-                  labelLine={!isMobile}
-                  label={
-                    !isMobile
-                      ? ({ name, percent }) =>
-                          `${name}: ${(percent * 100).toFixed(0)}%`
-                      : undefined
-                  }
-                  outerRadius={isMobile ? 80 : 100}
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
                 >
                   {categoryData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS.categories[index % COLORS.categories.length]}
-                    />
+                    <Cell key={`cell-${index}`} fill={COLORS.categories[index % COLORS.categories.length]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
+                <Tooltip 
+                  contentStyle={{ 
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '0.5rem',
@@ -183,36 +189,33 @@ export function StatisticsView({ incomes, expenses }: StatisticsViewProps) {
         </motion.div>
       )}
 
-      {/* Monthly Trends */}
       {monthlyData.length > 0 && (
         <motion.div variants={itemVariants}>
-          <Card className="p-4 sm:p-6">
-            <h3 className="text-lg sm:text-xl font-bold mb-4 text-center sm:text-left">
-              {t('monthlyTrends')}
-            </h3>
-            <ResponsiveContainer width="100%" height={chartHeight}>
+          <Card className="p-4 md:p-6 hover:shadow-medium transition-shadow">
+            <h3 className="text-lg md:text-xl font-bold mb-4">{t('monthlyTrends')}</h3>
+            <ResponsiveContainer width="100%" height={250}>
               <LineChart data={monthlyData}>
-                <XAxis dataKey="month" tick={{ fontSize: axisFontSize }} />
-                <YAxis tick={{ fontSize: axisFontSize }} />
-                <Tooltip
-                  contentStyle={{
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip 
+                  contentStyle={{ 
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '0.5rem',
                   }}
                 />
-                {!isMobile && <Legend />}
-                <Line
-                  type="monotone"
-                  dataKey="income"
-                  stroke={COLORS.income}
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="income" 
+                  stroke={COLORS.income} 
                   strokeWidth={2}
                   name={t('income')}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="expenses"
-                  stroke={COLORS.expense}
+                <Line 
+                  type="monotone" 
+                  dataKey="expenses" 
+                  stroke={COLORS.expense} 
                   strokeWidth={2}
                   name={t('expenses')}
                 />
