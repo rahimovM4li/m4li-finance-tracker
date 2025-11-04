@@ -1,12 +1,15 @@
 import { RecurringTransaction, Income, Expense } from '@/types/finance';
-import { addDays, addWeeks, addMonths, addYears, startOfMonth, endOfMonth, isWithinInterval, isBefore, isAfter, format } from 'date-fns';
+import { addWeeks, addMonths, addYears, startOfMonth, endOfMonth, isWithinInterval, isBefore, isAfter, isSameDay, format } from 'date-fns';
 
 export function generateRecurringTransactionsForMonth(
   recurring: RecurringTransaction[],
-  month: Date
+  month: Date,
+  onlyUntilToday: boolean = false // Neuer Parameter
 ): { incomes: Income[]; expenses: Expense[] } {
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Zeit auf Mitternacht setzen für korrekte Vergleiche
   
   const generatedIncomes: Income[] = [];
   const generatedExpenses: Expense[] = [];
@@ -28,7 +31,8 @@ export function generateRecurringTransactionsForMonth(
       endDate,
       transaction.frequency,
       monthStart,
-      monthEnd
+      monthEnd,
+      onlyUntilToday ? today : null // Nur Transaktionen bis heute generieren
     );
 
     occurrences.forEach((occurrenceDate) => {
@@ -67,7 +71,8 @@ function getOccurrencesInMonth(
   endDate: Date | null,
   frequency: 'weekly' | 'monthly' | 'yearly',
   monthStart: Date,
-  monthEnd: Date
+  monthEnd: Date,
+  maxDate: Date | null = null // Neuer Parameter: maximales Datum
 ): Date[] {
   const occurrences: Date[] = [];
   let currentDate = new Date(startDate);
@@ -83,7 +88,10 @@ function getOccurrencesInMonth(
     (endDate === null || !isAfter(currentDate, endDate))
   ) {
     if (isWithinInterval(currentDate, { start: monthStart, end: monthEnd })) {
-      occurrences.push(new Date(currentDate));
+      // Prüfen, ob das Datum bereits erreicht wurde
+      if (maxDate === null || isBefore(currentDate, maxDate) || isSameDay(currentDate, maxDate)) {
+        occurrences.push(new Date(currentDate));
+      }
     }
     currentDate = getNextOccurrence(currentDate, frequency);
   }
@@ -107,7 +115,9 @@ export function getUpcomingRecurringTransactions(
   daysAhead: number = 7
 ): Array<RecurringTransaction & { nextDate: string; daysUntil: number }> {
   const today = new Date();
-  const futureDate = addDays(today, daysAhead);
+  today.setHours(0, 0, 0, 0);
+  const futureDate = new Date(today);
+  futureDate.setDate(futureDate.getDate() + daysAhead);
 
   return recurring
     .filter((t) => !t.isPaused)

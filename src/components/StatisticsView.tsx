@@ -50,14 +50,6 @@ export function StatisticsView({ incomes, expenses, selectedMonth}: StatisticsVi
 
   const selectedYear = selectedMonth.getFullYear();
 
-  // Debug: Schaue dir die eingehenden Daten an
-  console.log('=== DEBUG StatisticsView ===');
-  console.log('selectedMonth:', selectedMonth);
-  console.log('Total incomes:', incomes.length);
-  console.log('Total expenses:', expenses.length);
-  console.log('Sample income dates:', incomes.slice(0, 3).map(i => i.date));
-  console.log('Sample expense dates:', expenses.slice(0, 3).map(e => e.date));
-
   // Erstelle alle Monate des ausgewählten Jahres
   const months = Array.from({ length: 12 }, (_, i) =>
     new Date(selectedYear, i, 1).toLocaleDateString('en-US', {
@@ -79,7 +71,6 @@ export function StatisticsView({ incomes, expenses, selectedMonth}: StatisticsVi
       month: 'short',
       year: 'numeric',
     });
-    console.log(`Processing item: date=${item.date}, parsed=${date}, month=${month}, year=${date.getFullYear()}`);
     
     // Nur Transaktionen aus dem ausgewählten Jahr
     if (date.getFullYear() === selectedYear) {
@@ -100,8 +91,6 @@ export function StatisticsView({ incomes, expenses, selectedMonth}: StatisticsVi
       expenses: monthlyDataMap[month].expenses,
     }));
 
-  console.log('monthlyDataMap:', monthlyDataMap);
-  console.log('monthlyData:', monthlyData);
 
   const containerVariants = {
     hidden: { opacity: 0 },

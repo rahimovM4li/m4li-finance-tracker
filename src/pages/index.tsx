@@ -15,98 +15,57 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { Income, Expense, RecurringTransaction } from '@/types/finance';
 import { LayoutDashboard, TrendingUp, TrendingDown, BarChart3, Repeat, AlertCircle } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
-import { generateRecurringTransactionsForMonth, getUpcomingRecurringTransactions } from '@/utils/recurringTransactions';
+import { format, isSameMonth } from 'date-fns';
+import { getUpcomingRecurringTransactions } from '@/utils/recurringTransactions';
+import { calculatePreviousBalance, calculateCurrentMonthBalance } from '@/utils/balanceCalculations';
 
 const Index = ({ onOpenPINSetup }: { onOpenPINSetup?: () => void }) => {
   const { t } = useLanguage();
   const [incomes, setIncomes] = useLocalStorage<Income[]>('incomes', []);
   const [expenses, setExpenses] = useLocalStorage<Expense[]>('expenses', []);
   const [recurringTransactions, setRecurringTransactions] = useLocalStorage<RecurringTransaction[]>('recurringTransactions', []);
-  const [userName, setUserName] = useLocalStorage<string>('userName', '');
+  const [userName, setUserName, isUserNameLoaded] = useLocalStorage<string>('userName', '');
   const [showWelcome, setShowWelcome] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<Date>(startOfMonth(new Date()));
+  const [selectedMonth, setSelectedMonth] = useState<Date>(new Date());
 
   useEffect(() => {
-    if (!userName) {
+    // Only show welcome modal after data has loaded from localStorage
+    if (isUserNameLoaded && !userName) {
       setShowWelcome(true);
     }
-  }, [userName]);
+  }, [userName, isUserNameLoaded]);
 
   const handleWelcomeComplete = (name: string) => {
     setUserName(name);
     setShowWelcome(false);
   };
 
-  // Generate recurring transactions for the selected month
-  const generatedRecurringTransactions = useMemo(() => {
-    return generateRecurringTransactionsForMonth(recurringTransactions, selectedMonth);
-  }, [recurringTransactions, selectedMonth]);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isCurrentMonth = isSameMonth(selectedMonth, today);
 
-  // Filter transactions by selected month and merge with recurring
-  const filteredIncomes = useMemo(() => {
-    const monthStart = startOfMonth(selectedMonth);
-    const monthEnd = endOfMonth(selectedMonth);
-    
-    const regularIncomes = incomes.filter(income => {
-      const incomeDate = parseISO(income.date);
-      return isWithinInterval(incomeDate, { start: monthStart, end: monthEnd });
-    });
-    
-    return [...regularIncomes, ...generatedRecurringTransactions.incomes];
-  }, [incomes, selectedMonth, generatedRecurringTransactions]);
+  // Calculate previous balance from all months before selected month
+  const previousBalance = useMemo(() => {
+    return calculatePreviousBalance(incomes, expenses, recurringTransactions, selectedMonth);
+  }, [incomes, expenses, recurringTransactions, selectedMonth]);
 
-  const filteredExpenses = useMemo(() => {
-    const monthStart = startOfMonth(selectedMonth);
-    const monthEnd = endOfMonth(selectedMonth);
-    
-    const regularExpenses = expenses.filter(expense => {
-      const expenseDate = parseISO(expense.date);
-      return isWithinInterval(expenseDate, { start: monthStart, end: monthEnd });
-    });
-    
-    return [...regularExpenses, ...generatedRecurringTransactions.expenses];
-  }, [expenses, selectedMonth, generatedRecurringTransactions]);
+  // Calculate current month balance (inkl. recurring transactions)
+  const currentMonthData = useMemo(() => {
+    return calculateCurrentMonthBalance(
+      incomes,
+      expenses,
+      recurringTransactions,
+      selectedMonth
+    );
+  }, [incomes, expenses, recurringTransactions, selectedMonth]);
 
-  // Get upcoming recurring transactions
+  // Total balance includes carry-over from previous months
+  const totalBalance = previousBalance + currentMonthData.balance;
+
+  // Get upcoming recurring transactions (nur für aktuellen Monat relevant)
   const upcomingRecurring = useMemo(() => {
     return getUpcomingRecurringTransactions(recurringTransactions, 7);
   }, [recurringTransactions]);
-
-
-  // Current month totals
-  const totalIncome = filteredIncomes.reduce((sum, income) => sum + income.amount, 0);
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  
-  // Cumulative balance: all transactions up to and including selected month
-  const cumulativeBalance = useMemo(() => {
-    const monthStart = startOfMonth(selectedMonth);
-    
-    const allIncomeUpToMonth = incomes.filter(income => {
-      const incomeDate = parseISO(income.date);
-      return incomeDate <= monthStart || isWithinInterval(incomeDate, { 
-        start: monthStart, 
-        end: endOfMonth(selectedMonth) 
-      });
-    });
-    
-    const allExpensesUpToMonth = expenses.filter(expense => {
-      const expenseDate = parseISO(expense.date);
-      return expenseDate <= monthStart || isWithinInterval(expenseDate, { 
-        start: monthStart, 
-        end: endOfMonth(selectedMonth) 
-      });
-    });
-    
-    const totalIncomeUpToMonth = allIncomeUpToMonth.reduce((sum, income) => sum + income.amount, 0);
-    const totalExpensesUpToMonth = allExpensesUpToMonth.reduce((sum, expense) => sum + expense.amount, 0);
-    
-    return totalIncomeUpToMonth - totalExpensesUpToMonth;
-  }, [incomes, expenses, selectedMonth]);
-  
-  const balance = cumulativeBalance;
-
-  console.log('Cumulative Balance up to selected month:', cumulativeBalance);
 
   const activeRecurringCount = recurringTransactions.filter(t => !t.isPaused).length;
 
@@ -152,8 +111,6 @@ const Index = ({ onOpenPINSetup }: { onOpenPINSetup?: () => void }) => {
     setRecurringTransactions(recurringTransactions.filter(t => t.id !== id));
   };
 
-  const isCurrentMonth = format(selectedMonth, 'yyyy-MM') === format(new Date(), 'yyyy-MM');
-
   return (
     <div className="min-h-screen bg-background">
       <WelcomeModal open={showWelcome} onComplete={handleWelcomeComplete} />
@@ -165,13 +122,13 @@ const Index = ({ onOpenPINSetup }: { onOpenPINSetup?: () => void }) => {
         transition={{ duration: 0.5 }}
         className="container mx-auto px-4 py-8"
       >
-        {userName && <GreetingBanner userName={userName} balance={balance} />}
+        {userName && <GreetingBanner userName={userName} balance={totalBalance} />}
         
         <div className="mb-6">
           <MonthSelector selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} />
         </div>
 
-        {/* Recurring Summary */}
+        {/* Recurring Summary - nur für aktuellen Monat */}
         {activeRecurringCount > 0 && isCurrentMonth && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -202,7 +159,7 @@ const Index = ({ onOpenPINSetup }: { onOpenPINSetup?: () => void }) => {
         )}
 
         {/* Empty State for filtered month */}
-        {filteredIncomes.length === 0 && filteredExpenses.length === 0 && (
+        {currentMonthData.incomes.length === 0 && currentMonthData.expenses.length === 0 && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -215,30 +172,35 @@ const Index = ({ onOpenPINSetup }: { onOpenPINSetup?: () => void }) => {
         )}
         
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8 glass-effect h-auto">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2 py-3 min-h-[44px]">
+          <TabsList className="grid w-full grid-cols-4 mb-6 sm:mb-8 glass-effect h-auto shadow-soft">
+            <TabsTrigger value="dashboard" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 sm:px-4 min-h-[44px] data-[state=active]:shadow-glow transition-all">
               <LayoutDashboard className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('dashboard')}</span>
+              <span className="text-xs sm:text-sm">{t('dashboard')}</span>
             </TabsTrigger>
-            <TabsTrigger value="income" className="flex items-center gap-2 py-3 min-h-[44px]">
+            <TabsTrigger value="income" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 sm:px-4 min-h-[44px] data-[state=active]:shadow-glow transition-all">
               <TrendingUp className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('income')}</span>
+              <span className="text-xs sm:text-sm">{t('income')}</span>
             </TabsTrigger>
-            <TabsTrigger value="expenses" className="flex items-center gap-2 py-3 min-h-[44px]">
+            <TabsTrigger value="expenses" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 sm:px-4 min-h-[44px] data-[state=active]:shadow-glow transition-all">
               <TrendingDown className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('expenses')}</span>
+              <span className="text-xs sm:text-sm">{t('expenses')}</span>
             </TabsTrigger>
-            <TabsTrigger value="statistics" className="flex items-center gap-2 py-3 min-h-[44px]">
+            <TabsTrigger value="statistics" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 sm:px-4 min-h-[44px] data-[state=active]:shadow-glow transition-all">
               <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('statistics')}</span>
+              <span className="text-xs sm:text-sm">{t('statistics')}</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-6">
-            <Dashboard incomes={filteredIncomes} expenses={filteredExpenses} />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Dashboard 
+              incomes={currentMonthData.incomes} 
+              expenses={currentMonthData.expenses}
+              previousBalance={previousBalance}
+              totalBalance={totalBalance}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <IncomeList
-                incomes={filteredIncomes}
+                incomes={currentMonthData.incomes}
                 onAddIncome={handleAddIncome}
                 onDeleteIncome={handleDeleteIncome}
                 recurringTransactions={recurringTransactions}
@@ -247,7 +209,7 @@ const Index = ({ onOpenPINSetup }: { onOpenPINSetup?: () => void }) => {
                 onDeleteRecurring={handleDeleteRecurring}
               />
               <ExpenseList
-                expenses={filteredExpenses}
+                expenses={currentMonthData.expenses}
                 onAddExpense={handleAddExpense}
                 onDeleteExpense={handleDeleteExpense}
                 recurringTransactions={recurringTransactions}
@@ -260,7 +222,7 @@ const Index = ({ onOpenPINSetup }: { onOpenPINSetup?: () => void }) => {
 
           <TabsContent value="income">
             <IncomeList
-              incomes={filteredIncomes}
+              incomes={currentMonthData.incomes}
               onAddIncome={handleAddIncome}
               onDeleteIncome={handleDeleteIncome}
               recurringTransactions={recurringTransactions}
@@ -272,7 +234,7 @@ const Index = ({ onOpenPINSetup }: { onOpenPINSetup?: () => void }) => {
 
           <TabsContent value="expenses">
             <ExpenseList
-              expenses={filteredExpenses}
+              expenses={currentMonthData.expenses}
               onAddExpense={handleAddExpense}
               onDeleteExpense={handleDeleteExpense}
               recurringTransactions={recurringTransactions}
@@ -283,7 +245,11 @@ const Index = ({ onOpenPINSetup }: { onOpenPINSetup?: () => void }) => {
           </TabsContent>
 
           <TabsContent value="statistics">
-            <StatisticsView incomes={incomes} expenses={expenses}  selectedMonth={selectedMonth || new Date()}/>
+            <StatisticsView 
+              incomes={incomes} 
+              expenses={expenses}  
+              selectedMonth={selectedMonth}
+            />
           </TabsContent>
         </Tabs>
       </motion.main>

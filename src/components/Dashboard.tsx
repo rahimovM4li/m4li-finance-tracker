@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Wallet, PiggyBank } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, ArrowRightLeft } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { Income, Expense } from '@/types/finance';
@@ -9,17 +9,25 @@ import { AnimatedCounter } from './AnimatedCounter';
 interface DashboardProps {
   incomes: Income[];
   expenses: Expense[];
+  previousBalance: number;
+  totalBalance: number;
 }
 
-export function Dashboard({ incomes, expenses }: DashboardProps) {
+export function Dashboard({ incomes, expenses, previousBalance, totalBalance }: DashboardProps) {
   const { t } = useLanguage();
   const { formatAmount } = useCurrency();
 
   const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const balance = totalIncome - totalExpenses;
 
   const stats = [
+    {
+      label: t('previousBalance'),
+      value: previousBalance,
+      icon: ArrowRightLeft,
+      gradient: previousBalance >= 0 ? 'gradient-income' : 'gradient-expense',
+      color: previousBalance >= 0 ? 'text-income' : 'text-expense',
+    },
     {
       label: t('totalIncome'),
       value: totalIncome,
@@ -35,11 +43,11 @@ export function Dashboard({ incomes, expenses }: DashboardProps) {
       color: 'text-expense',
     },
     {
-      label: t('remainingBalance'),
-      value: balance,
-      icon: balance >= 0 ? PiggyBank : Wallet,
-      gradient: balance >= 0 ? 'gradient-income' : 'gradient-expense',
-      color: balance >= 0 ? 'text-income' : 'text-expense',
+      label: t('totalBalance'),
+      value: totalBalance,
+      icon: Wallet,
+      gradient: totalBalance >= 0 ? 'gradient-income' : 'gradient-expense',
+      color: totalBalance >= 0 ? 'text-income' : 'text-expense',
     },
   ];
 
@@ -70,7 +78,7 @@ export function Dashboard({ incomes, expenses }: DashboardProps) {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8"
+      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8"
     >
       {stats.map((stat, index) => {
         const Icon = stat.icon;

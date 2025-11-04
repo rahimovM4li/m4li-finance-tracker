@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import localforage from 'localforage';
 
-type Language = 'en' | 'ru' | 'tg';
+export type Language = 'en' | 'ru' | 'tg';
 
 interface LanguageContextType {
   language: Language;
@@ -43,6 +44,8 @@ const translations = {
     expenseName: 'Expense Name',
     totalExpenses: 'Total Expenses',
     remainingBalance: 'Remaining Balance',
+    previousBalance: 'Previous Balance',
+    totalBalance: 'Total Balance',
     
     // Categories
     food: 'Food',
@@ -98,6 +101,7 @@ const translations = {
     categoryBreakdown: 'Current month category breakdown',
     incomeVsExpenses: 'Income vs Expenses',
     monthlyTrends: 'Monthly Trends',
+    achievement: '🎉 Achievement Unlocked',
     savingsGoal: 'Savings Goal',
     trackYourProgress: 'Track your monthly savings progress',
     setSavingsGoal: 'Set a monthly savings target',
@@ -206,6 +210,8 @@ const translations = {
     expenseName: 'Название расхода',
     totalExpenses: 'Общие расходы',
     remainingBalance: 'Остаток',
+    previousBalance: 'Предыдущий баланс',
+    totalBalance: 'Общий баланс',
     
     // Categories
     food: 'Еда',
@@ -261,7 +267,8 @@ const translations = {
     spendingByCategory: 'Расходы по категориям',
     categoryBreakdown: 'Разбивка по категориям за текущий месяц',
     incomeVsExpenses: 'Доходы против расходов',
-    monthlyTrends: 'Месячные тренды',
+    monthlyTrends: 'Месячные Тренды',
+    achievement: '🎉 Достижение разблокировано',
     savingsGoal: 'Цель по накоплениям',
     trackYourProgress: 'Отслеживайте свой прогресс',
     setSavingsGoal: 'Установите месячную цель',
@@ -404,6 +411,8 @@ const translations = {
     expenseName: 'Номи харҷот',
     totalExpenses: 'Харҷоти умумӣ',
     remainingBalance: 'Боқимонда',
+    previousBalance: 'Боқимондаи қаблӣ',
+    totalBalance: 'Ҳамаи боқимонда',
     
     // Categories
     food: 'Хӯрок',
@@ -459,6 +468,7 @@ const translations = {
     categoryBreakdown: 'Тақсимот аз рӯи категория барои моҳи ҷорӣ',
     incomeVsExpenses: 'Даромад ба муқобили харҷот',
     monthlyTrends: 'Тамоюли моҳона',
+    achievement: '🎉 Муваффақият кушода шуд',
     savingsGoal: 'Максади пасандоз',
     trackYourProgress: 'Пешравии худро пайгирӣ кунед',
     setSavingsGoal: 'Максади моҳона гузоред',
@@ -572,13 +582,18 @@ const translations = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>(() => {
-    const saved = localStorage.getItem('language');
-    return (saved as Language) || 'en';
-  });
+  const [language, setLanguage] = useState<Language>('en');
 
   useEffect(() => {
-    localStorage.setItem('language', language);
+    localforage.getItem<Language>('language')
+      .then((saved) => {
+        if (saved) setLanguage(saved);
+      })
+      .catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    localforage.setItem('language', language).catch(console.error);
   }, [language]);
 
   const toggleLanguage = () => {

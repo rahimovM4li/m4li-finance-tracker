@@ -17,11 +17,10 @@ import { AnimatedCounter } from '@/components/AnimatedCounter';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, subMonths } from 'date-fns';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { checkBudgetAlerts, NotificationMessage } from '@/utils/notifications';
 import { NotificationConfig } from '@/components/NotificationSettings';
 
@@ -116,9 +115,12 @@ export default function Insights() {
     }));
   }, [currentMonthExpenses, t]);
 
-  // Daily expense heatmap
+  // Daily expense heatmap with proper calendar alignment
   const dailyExpenses = useMemo(() => {
-    return daysInMonth.map((day) => {
+    const firstDayOfMonth = currentMonthStart.getDay(); // 0 = Sunday, 6 = Saturday
+    const emptyCells = Array(firstDayOfMonth).fill(null);
+    
+    const filledCells = daysInMonth.map((day) => {
       const dayExpenses = currentMonthExpenses.filter((e) => isSameDay(new Date(e.date), day));
       const total = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
       return {
@@ -127,9 +129,11 @@ export default function Insights() {
         expenses: dayExpenses,
       };
     });
-  }, [daysInMonth, currentMonthExpenses]);
+    
+    return [...emptyCells, ...filledCells];
+  }, [daysInMonth, currentMonthExpenses, currentMonthStart]);
 
-  const maxDailyExpense = Math.max(...dailyExpenses.map((d) => d.total), 1);
+  const maxDailyExpense = Math.max(...dailyExpenses.filter(d => d !== null).map((d) => d.total), 1);
 
   const getHeatmapColor = (amount: number) => {
     const intensity = amount / maxDailyExpense;
@@ -300,49 +304,53 @@ export default function Insights() {
                     <span className="md:hidden">{day}</span>
                   </div>
                 ))}
-               {dailyExpenses.map((day, index) => {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <TooltipProvider key={index}>
-      <Tooltip open={open} onOpenChange={setOpen}>
-        <TooltipTrigger asChild>
-          <motion.div
-            onClick={() => setOpen((prev) => !prev)} // 👈 Toggle beim Klick/Touch
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={`aspect-square rounded ${getHeatmapColor(day.total)} border border-border flex items-center justify-center cursor-pointer transition-all`}
-          >
-            <div className="text-center">
-              <div className="text-[10px] md:text-xs font-semibold">{format(day.date, 'd')}</div>
-              {day.total > 0 && (
-                <div className="hidden md:block text-[8px] md:text-[10px] font-medium truncate px-0.5">
-                  {formatAmount(day.total)}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </TooltipTrigger>
-        <TooltipContent className="bg-card border z-50">
-          <div className="space-y-1">
-            <p className="font-semibold">{format(day.date, 'MMM d, yyyy')}</p>
-            <p className="text-sm">{t('totalExpenses')}: {formatAmount(day.total)}</p>
-            {day.expenses.length > 0 && (
-              <div className="text-xs space-y-0.5 mt-2 border-t pt-1">
-                {day.expenses.map((exp) => (
-                  <div key={exp.id} className="flex justify-between gap-4">
-                    <span>{exp.name}</span>
-                    <span className="font-medium">{formatAmount(exp.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-})}
+                {dailyExpenses.map((day, index) => {
+                  // Empty cells for alignment
+                  if (day === null) {
+                    return <div key={`empty-${index}`} className="aspect-square" />;
+                  }
+                  
+                  return (
+                    <Popover key={index}>
+                      <PopoverTrigger asChild>
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className={`aspect-square rounded ${getHeatmapColor(day.total)} border border-border flex items-center justify-center cursor-pointer transition-all hover:ring-2 hover:ring-primary/50 active:ring-2 active:ring-primary`}
+                        >
+                          <div className="text-center">
+                            <div className="text-[10px] md:text-xs font-semibold">{format(day.date, 'd')}</div>
+                            {day.total > 0 && (
+                              <div className="hidden md:block text-[8px] md:text-[10px] font-medium truncate px-0.5">
+                                {formatAmount(day.total)}
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      </PopoverTrigger>
+                      <PopoverContent className="bg-card border z-50 w-64 p-3" side="top" align="center">
+                        <div className="space-y-2">
+                          <p className="font-semibold text-sm">{format(day.date, 'MMM d, yyyy')}</p>
+                          <p className="text-sm">{t('totalExpenses')}: <span className="font-bold text-expense">{formatAmount(day.total)}</span></p>
+                          {day.expenses.length > 0 && (
+                            <div className="text-xs space-y-1 mt-2 border-t pt-2">
+                              <p className="font-medium text-muted-foreground mb-1">Transactions:</p>
+                              {day.expenses.map((exp) => (
+                                <div key={exp.id} className="flex justify-between gap-3 py-0.5">
+                                  <span className="truncate">{exp.name}</span>
+                                  <span className="font-medium text-expense whitespace-nowrap">{formatAmount(exp.amount)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {day.expenses.length === 0 && (
+                            <p className="text-xs text-muted-foreground italic">No expenses on this day</p>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
